@@ -35,23 +35,58 @@ let ``part1`` () =
     |> Flip.Expect.equal "equal" 5346286649122I
 
 let parseInput2 filePath =
-    let regex = Regex ("""\w+(?=\s\d)""", RegexOptions.Compiled)
     let lines = File.ReadAllLines filePath
 
-    let matches = lines |> Array.map (fun line -> regex.Matches line )
-    // |> Array.transpose
-    // |> Array.map (fun x ->
-    //     let tillLast = x[.. x.Length - 2] |> Array.map bigint.Parse
-    //     let operator = x |> Array.last
-    //     tillLast, operator |> char
-    // )
+    // Pad lines to same length and transpose to get columns
+    let maxLen = lines |> Array.map String.length |> Array.max
+    let paddedLines = lines |> Array.map _.PadRight(maxLen)
 
-    [|[||], 'c'|]
+    let columns =
+        [| 0 .. maxLen - 1 |] |> Array.map (fun i -> paddedLines |> Array.map (fun line -> line[i]))
+
+    // Group columns by problems (space-only columns are separators)
+    let problems =
+        columns
+        |> Array.fold
+            (fun (acc, current) col ->
+                if col |> Array.forall (fun c -> c = ' ') then
+                    if current |> List.isEmpty then
+                        (acc, [])
+                    else
+                        ((current |> List.rev) :: acc, [])
+                else
+                    (acc, col :: current)
+            )
+            ([], [])
+        |> fun (acc, current) ->
+            if current |> List.isEmpty then acc else (current |> List.rev) :: acc
+        |> List.map List.toArray
+        |> List.toArray
+
+    // Parse each problem: columns become numbers, last char of each column is operator
+    problems
+    |> Array.map (fun cols ->
+        let operator =
+            cols //
+            |> Array.map (fun y -> y |> Array.last)
+            |> Array.find (fun c -> c <> ' ')
+            |> char
+
+        let numbers =
+            cols
+            |> Array.map (fun col ->
+                // Read digits top-to-bottom, ignoring spaces and operator row
+                let digits = col[.. col.Length - 2] |> Array.filter Char.IsDigit
+                new String (digits) |> bigint.Parse
+            )
+
+        numbers, operator
+    )
 
 
 [<Fact>]
 let ``part2`` () =
-    let input = parseInput2 "2025/Day6/TestData.txt"
+    let input = parseInput2 "2025/Day6/Data.txt"
 
     input
     |> Array.map (fun (numbers, operator) ->
@@ -61,4 +96,4 @@ let ``part2`` () =
         | _ -> failwith "Invalid operator"
     )
     |> Array.sum
-    |> Flip.Expect.equal "equal" 3263827I
+    |> Flip.Expect.equal "equal" 10389131401929I
