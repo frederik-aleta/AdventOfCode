@@ -34,50 +34,45 @@ let ``part1`` () =
     |> Array.sum
     |> Flip.Expect.equal "equal" 5346286649122I
 
-let parseInput2 filePath =
+let parseInputPart2 filePath =
     let lines = File.ReadAllLines filePath
 
-    // Pad lines to same length and transpose to get columns
     let maxLen = lines |> Array.map String.length |> Array.max
     let paddedLines = lines |> Array.map _.PadRight(maxLen)
 
     let columns =
-        [| 0 .. maxLen - 1 |] |> Array.map (fun i -> paddedLines |> Array.map (fun line -> line[i]))
+        [| 0 .. maxLen - 1 |] //
+        |> Array.map (fun i -> paddedLines |> Array.map (fun line -> line[i]))
 
-    // Group columns by problems (space-only columns are separators)
+    // Split into problems at space-only columns
     let problems =
         columns
         |> Array.fold
             (fun (acc, current) col ->
-                if col |> Array.forall (fun c -> c = ' ') then
-                    if current |> List.isEmpty then
-                        (acc, [])
-                    else
-                        ((current |> List.rev) :: acc, [])
+                if col |> Array.forall ((=) ' ') then
+                    if current |> List.isEmpty then (acc, [])
+                    else (acc @ [current |> List.rev |> List.toArray], [])
                 else
                     (acc, col :: current)
             )
             ([], [])
         |> fun (acc, current) ->
-            if current |> List.isEmpty then acc else (current |> List.rev) :: acc
-        |> List.map List.toArray
+            if current |> List.isEmpty then acc
+            else acc @ [current |> List.rev |> List.toArray]
         |> List.toArray
 
-    // Parse each problem: columns become numbers, last char of each column is operator
     problems
     |> Array.map (fun cols ->
         let operator =
-            cols //
-            |> Array.map (fun y -> y |> Array.last)
-            |> Array.find (fun c -> c <> ' ')
-            |> char
+            cols
+            |> Array.map Array.last
+            |> Array.find ((<>) ' ')
 
         let numbers =
             cols
             |> Array.map (fun col ->
-                // Read digits top-to-bottom, ignoring spaces and operator row
                 let digits = col[.. col.Length - 2] |> Array.filter Char.IsDigit
-                new String (digits) |> bigint.Parse
+                String(digits) |> bigint.Parse
             )
 
         numbers, operator
@@ -86,7 +81,7 @@ let parseInput2 filePath =
 
 [<Fact>]
 let ``part2`` () =
-    let input = parseInput2 "2025/Day6/Data.txt"
+    let input = parseInputPart2 "2025/Day6/Data.txt"
 
     input
     |> Array.map (fun (numbers, operator) ->
